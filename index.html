@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apartment Management System - Admin Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f1f5f9; /* A slightly cooler gray */
+        }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            color: #475569; /* Darker gray for better contrast */
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: #eef2ff;
+            color: #4f46e5;
+        }
+        .sidebar-link svg {
+            margin-right: 0.75rem;
+        }
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40; display: none;
+        }
+        .modal {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50; display: none;
+            max-height: 90vh;
+        }
+        /* Custom toast notification for feedback */
+        #toast {
+            position: fixed; top: 20px; right: 20px;
+            background-color: #22c55e; color: white;
+            padding: 1rem 1.5rem; border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 100; display: none;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #toast.error { background-color: #ef4444; }
+
+        /* Styles for printing documents */
+        @media print {
+            body * { visibility: hidden; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area {
+                position: absolute; left: 0; top: 0; width: 100%;
+            }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-white shadow-lg flex-shrink-0 no-print">
+        <div class="p-6 border-b">
+            <h1 class="text-2xl font-bold text-indigo-600">BeLiv Admin</h1>
+        </div>
+        <nav class="mt-4 px-4">
+            <a href="#" id="nav-dashboard" class="sidebar-link active" onclick="showView('dashboard')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg> แดชบอร์ด
+            </a>
+            <a href="#" id="nav-tenants" class="sidebar-link" onclick="showView('tenants')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg> จัดการผู้เช่า
+            </a>
+            <a href="#" id="nav-maintenance" class="sidebar-link" onclick="showView('maintenance')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg> จัดการซ่อมบำรุง
+            </a>
+            <a href="#" id="nav-documents" class="sidebar-link" onclick="showView('documents')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg> สร้างเอกสาร
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <!-- View: Dashboard -->
+        <div id="view-dashboard">
+            <h2 class="text-3xl font-bold mb-6 text-slate-800">แดชบอร์ดภาพรวม</h2>
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                        </svg>
+                    </div>
+                    <div class="ml-4"><p class="text-gray-500">ห้องว่าง</p><p id="vacant-rooms-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <div class="ml-4"><p class="text-gray-500">ห้องไม่ว่าง</p><p id="occupied-rooms-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-yellow-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div class="ml-4"><p class="text-gray-500">แจ้งซ่อม</p><p id="maintenance-requests-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div class="ml-4"><p class="text-gray-500">สัญญาใกล้หมดอายุ</p><p id="expiring-leases-count" class="text-2xl font-bold">0</p></div>
+                </div>
+            </div>
+
+             <!-- Lease Expiry Notifications -->
+            <div id="lease-expiry-section" class="mb-8 hidden">
+                <h3 class="text-xl font-semibold mb-4 text-slate-700">สัญญาเช่าที่ใกล้จะหมดอายุ (30 วัน)</h3>
+                <div id="lease-expiry-list" class="bg-white p-4 rounded-lg shadow-md">
+                    <!-- Expiry notifications will be injected here -->
+                </div>
+            </div>
+
+            <!-- Room Status Grid -->
+            <div>
+                <h3 class="text-xl font-semibold mb-4 text-slate-700">สถานะห้องพัก</h3>
+                <!-- Floor 1 -->
+                <div class="mb-6"><h4 class="font-bold text-slate-600 mb-3">ชั้น 1</h4>
+                    <div id="floor-1-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-4"></div>
+                </div>
+                <!-- Floor 2 -->
+                <div><h4 class="font-bold text-slate-600 mb-3">ชั้น 2</h4>
+                    <div id="floor-2-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Tenants Management -->
+        <div id="view-tenants" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">จัดการข้อมูลผู้เช่า</h2>
+                <button onclick="openTenantModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg> เพิ่มผู้เช่าใหม่
+                </button>
+            </div>
+             <div class="mb-4">
+                <input type="text" id="tenant-search" onkeyup="renderTenantsTable()" placeholder="ค้นหาชื่อผู้เช่าหรือห้อง..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="py-2 px-2 cursor-pointer" onclick="sortTable('tenants-table-body', 0)">ห้อง 
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </th>
+                            <th class="py-2 px-2">ชื่อผู้เช่า</th>
+                            <th class="py-2 px-2">วันเริ่มสัญญา</th>
+                            <th class="py-2 px-2">วันสิ้นสุดสัญญา</th>
+                            <th class="py-2 px-2">ค่าเช่า/เดือน</th>
+                            <th class="py-2 px-2">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenants-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- View: Maintenance Management -->
+        <div id="view-maintenance" class="hidden">
+             <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">บันทึกการซ่อมบำรุง</h2>
+                <button onclick="openMaintenanceModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg> เพิ่มรายการซ่อม
+                </button>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="maintenance-search" onkeyup="renderMaintenanceTable()" placeholder="ค้นหารายการซ่อมหรือห้อง..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="py-2 px-2 cursor-pointer" onclick="sortTable('maintenance-table-body', 0)">วันที่แจ้ง 
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </th>
+                            <th class="py-2 px-2">ห้อง</th>
+                            <th class="py-2 px-2">รายการ</th>
+                            <th class="py-2 px-2">สถานะ</th>
+                            <th class="py-2 px-2">ค่าใช้จ่าย</th>
+                            <th class="py-2 px-2">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenance-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- View: Document Generation -->
+        <div id="view-documents" class="hidden">
+            <h2 class="text-3xl font-bold mb-6 text-slate-800">สร้างและพิมพ์เอกสาร</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="max-w-md">
+                    <label for="doc-tenant-select" class="block text-sm font-medium text-gray-700 mb-2">เลือกผู้เช่าเพื่อสร้างเอกสาร</label>
+                    <select id="doc-tenant-select" class="w-full p-2 border border-gray-300 rounded-lg"></select>
+                    <div class="mt-6 flex space-x-4">
+                        <button onclick="generateReceipt()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                            </svg> สร้างใบแจ้งหนี้/ใบเสร็จ
+                        </button>
+                        <button onclick="generateLease()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg> สร้างสัญญาเช่า
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="modal-backdrop" class="modal-backdrop" onclick="closeAllModals()"></div>
+
+    <!-- Tenant Modal -->
+    <div id="tenant-modal" class="modal bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h3 id="tenant-modal-title" class="text-2xl font-bold">เพิ่มผู้เช่าใหม่</h3>
+            <button onclick="closeModal('tenant-modal')" class="text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="tenant-form">
+            <input type="hidden" id="tenant-id">
+            <div class="mb-4">
+                <label for="tenant-room" class="block text-sm font-medium text-gray-700">ห้อง</label>
+                <select id="tenant-room" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></select>
+            </div>
+            <div class="mb-4">
+                <label for="tenant-name" class="block text-sm font-medium text-gray-700">ชื่อ-นามสกุล ผู้เช่า</label>
+                <input type="text" id="tenant-name" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="tenant-start-date" class="block text-sm font-medium text-gray-700">วันเริ่มสัญญา</label>
+                    <input type="date" id="tenant-start-date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div>
+                    <label for="tenant-end-date" class="block text-sm font-medium text-gray-700">วันสิ้นสุดสัญญา</label>
+                    <input type="date" id="tenant-end-date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="tenant-rent" class="block text-sm font-medium text-gray-700">ค่าเช่า (บาท/เดือน)</label>
+                <input type="number" id="tenant-rent" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+            </div>
+            <div class="flex justify-end space-x-4 mt-8">
+                <button type="button" onclick="closeModal('tenant-modal')" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">บันทึก</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div id="maintenance-modal" class="modal bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold">เพิ่ม/แก้ไข รายการซ่อมบำรุง</h3>
+            <button onclick="closeModal('maintenance-modal')" class="text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="maintenance-form">
+            <input type="hidden" id="maintenance-id">
+            <div class="mb-4">
+                <label for="maintenance-room" class="block text-sm font-medium text-gray-700">ห้อง</label>
+                <select id="maintenance-room" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></select>
+            </div>
+            <div class="mb-4">
+                <label for="maintenance-issue" class="block text-sm font-medium text-gray-700">รายการที่ต้องซ่อม</label>
+                <input type="text" id="maintenance-issue" placeholder="เช่น เปลี่ยนหลอดไฟ, ล้างแอร์" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+            </div>
+            <div class="mb-4">
+                <label for="maintenance-cost" class="block text-sm font-medium text-gray-700">ค่าใช้จ่าย (บาท)</label>
+                <input type="number" id="maintenance-cost" value="0" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+            </div>
+            <div class="mb-4">
+                <label for="maintenance-status" class="block text-sm font-medium text-gray-700">สถานะ</label>
+                <select id="maintenance-status" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                    <option value="Pending">รอดำเนินการ</option>
+                    <option value="In Progress">กำลังดำเนินการ</option>
+                    <option value="Completed">เสร็จสิ้น</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <input type="checkbox" id="maintenance-reminder" class="mr-2 rounded">
+                <label for="maintenance-reminder" class="text-sm font-medium text-gray-700">ตั้งค่าการแจ้งเตือน (ซ่อมตามรอบ)</label>
+            </div>
+            <div class="flex justify-end space-x-4 mt-8">
+                <button type="button" onclick="closeModal('maintenance-modal')" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">บันทึก</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Document Viewer Modal -->
+    <div id="document-modal" class="modal bg-white p-0 rounded-lg shadow-xl w-full max-w-3xl">
+        <div class="p-6 border-b flex justify-between items-center no-print">
+            <h3 id="document-title" class="text-2xl font-bold">ตัวอย่างเอกสาร</h3>
+            <div>
+                                <button onclick="closeModal('document-modal')" class="text-gray-500 hover:text-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="document-content" class="p-8 printable-area bg-white h-[70vh] overflow-y-auto"></div>
+                 <button onclick="printDocument()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center mr-2" style="margin-left: auto; margin-bottom: 20px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg> พิมพ์/ดาวน์โหลด PDF
+                </button>
+    </div>
+    
+    <!-- Custom Confirmation Modal -->
+    <div id="confirm-modal" class="modal bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <h3 id="confirm-title" class="text-lg font-medium text-gray-900">ยืนยันการลบ</h3>
+        <p id="confirm-text" class="text-sm text-gray-500 mt-2">คุณแน่ใจหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+        <div class="mt-6 flex justify-center space-x-4">
+            <button id="confirm-cancel-btn" type="button" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+            <button id="confirm-ok-btn" type="button" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">ยืนยัน</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast">
+        <p id="toast-message"></p>
+    </div>
+
+    <script>
+    // --- DATABASE & STATE MANAGEMENT ---
+    // Using localStorage to persist data across page reloads for a better demo experience.
+    let db = {
+        rooms: [],
+        tenants: [],
+        maintenance: []
+    };
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDataFromLocalStorage();
+        if (db.rooms.length === 0) {
+            initializeDefaultData();
+        }
+        renderAll();
+    });
+    
+    function loadDataFromLocalStorage() {
+        const storedDb = localStorage.getItem('apartmentDb');
+        if (storedDb) {
+            db = JSON.parse(storedDb);
+        }
+    }
+
+    function saveDataToLocalStorage() {
+        localStorage.setItem('apartmentDb', JSON.stringify(db));
+    }
+
+    function initializeDefaultData() {
+        // Create 24 rooms (12 per floor)
+        for (let i = 1; i <= 2; i++) { // Floors
+            for (let j = 1; j <= 12; j++) { // Rooms per floor
+                const roomNumber = `${i}${j < 10 ? '0' + j : j}`;
+                db.rooms.push({ id: roomNumber, floor: i, tenantId: null });
+            }
+        }
+        addSampleData();
+        saveDataToLocalStorage();
+    }
+
+    function addSampleData() {
+        db.tenants = [
+            { id: 1, roomId: '101', name: 'สมชาย ใจดี', startDate: '2024-01-15', endDate: '2025-01-14', rent: 5500 },
+            { id: 2, roomId: '103', name: 'สมหญิง รักสงบ', startDate: '2024-03-01', endDate: '2025-02-28', rent: 5500 },
+            { id: 3, roomId: '205', name: 'มานะ อดทน', startDate: '2024-05-20', endDate: '2025-05-19', rent: 6000 },
+            { id: 4, roomId: '211', name: 'ปิติ ยินดี', startDate: '2024-08-01', endDate: '2024-09-30', rent: 6200 }, // Expiring soon
+        ];
+        db.tenants.forEach(tenant => {
+            const room = db.rooms.find(r => r.id === tenant.roomId);
+            if (room) room.tenantId = tenant.id;
+        });
+
+        db.maintenance = [
+            { id: 1, roomId: '101', issue: 'แอร์ไม่เย็น', date: '2024-08-10', status: 'Completed', cost: 800, reminder: false },
+            { id: 2, roomId: '205', issue: 'เปลี่ยนหลอดไฟห้องน้ำ', date: '2024-08-22', status: 'In Progress', cost: 150, reminder: false },
+            { id: 3, roomId: '103', issue: 'ล้างแอร์ (ตามรอบ)', date: '2024-09-01', status: 'Pending', cost: 600, reminder: true },
+        ];
+    }
+
+
+    // --- RENDER FUNCTIONS ---
+    function renderAll() {
+        renderDashboard();
+        renderTenantsTable();
+        renderMaintenanceTable();
+        renderDocumentTenantSelect();
+    }
+
+    function renderDashboard() {
+        const floor1Grid = document.getElementById('floor-1-grid');
+        const floor2Grid = document.getElementById('floor-2-grid');
+        floor1Grid.innerHTML = '';
+        floor2Grid.innerHTML = '';
+        let occupiedCount = 0;
+        
+        db.rooms.forEach(room => {
+            const isOccupied = room.tenantId !== null;
+            if(isOccupied) occupiedCount++;
+            const roomCard = `
+                <div class="p-4 rounded-lg shadow-sm text-center cursor-pointer transition-transform hover:scale-105 ${isOccupied ? 'bg-red-100' : 'bg-green-100'}" onclick="viewRoomDetails('${room.id}')">
+                    <p class="font-bold text-lg">${room.id}</p>
+                    <p class="text-sm ${isOccupied ? 'text-red-700' : 'text-green-700'}">${isOccupied ? 'ไม่ว่าง' : 'ว่าง'}</p>
+                </div>`;
+            if (room.floor === 1) floor1Grid.innerHTML += roomCard;
+            else floor2Grid.innerHTML += roomCard;
+        });
+
+        document.getElementById('occupied-rooms-count').textContent = occupiedCount;
+        document.getElementById('vacant-rooms-count').textContent = db.rooms.length - occupiedCount;
+        document.getElementById('maintenance-requests-count').textContent = db.maintenance.filter(m => m.status !== 'Completed').length;
+        
+        // Lease Expiry
+        const today = new Date();
+        const thirtyDaysFromNow = new Date(today.setDate(today.getDate() + 30));
+        const expiringLeases = db.tenants.filter(t => {
+            const endDate = new Date(t.endDate);
+            return endDate <= thirtyDaysFromNow && endDate >= new Date(today.setDate(today.getDate() - 30)); // also check if not already passed
+        });
+
+        document.getElementById('expiring-leases-count').textContent = expiringLeases.length;
+        const expirySection = document.getElementById('lease-expiry-section');
+        const expiryList = document.getElementById('lease-expiry-list');
+        if (expiringLeases.length > 0) {
+            expiryList.innerHTML = expiringLeases.map(t => `
+                <div class="p-2 border-b last:border-b-0">
+                    <p><strong>ห้อง ${t.roomId} (${t.name})</strong> - หมดสัญญาวันที่ ${formatDate(t.endDate)}</p>
+                </div>
+            `).join('');
+            expirySection.classList.remove('hidden');
+        } else {
+            expirySection.classList.add('hidden');
+        }
+    }
+
+    function renderTenantsTable() {
+        const tableBody = document.getElementById('tenants-table-body');
+        const searchTerm = document.getElementById('tenant-search').value.toLowerCase();
+        const filteredTenants = db.tenants.filter(t => t.name.toLowerCase().includes(searchTerm) || t.roomId.includes(searchTerm));
+
+        tableBody.innerHTML = '';
+        if (filteredTenants.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">ไม่พบข้อมูลผู้เช่า</td></tr>';
+            return;
+        }
+        filteredTenants.forEach(tenant => {
+            const row = `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 px-2">${tenant.roomId}</td>
+                    <td class="py-3 px-2">${tenant.name}</td>
+                    <td class="py-3 px-2">${formatDate(tenant.startDate)}</td>
+                    <td class="py-3 px-2">${formatDate(tenant.endDate)}</td>
+                    <td class="py-3 px-2">${tenant.rent.toLocaleString()}</td>
+                    <td class="py-3 px-2">
+                        <button onclick="editTenant(${tenant.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button onclick="confirmDelete('tenant', ${tenant.id})" class="text-red-600 hover:text-red-900">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    function renderMaintenanceTable() {
+        const tableBody = document.getElementById('maintenance-table-body');
+        const searchTerm = document.getElementById('maintenance-search').value.toLowerCase();
+        const filteredMaintenance = db.maintenance.filter(item => item.issue.toLowerCase().includes(searchTerm) || item.roomId.includes(searchTerm));
+        
+        tableBody.innerHTML = '';
+        if (filteredMaintenance.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">ไม่มีรายการซ่อมบำรุง</td></tr>';
+            return;
+        }
+        const statusBadge = {
+            'Pending': 'bg-yellow-100 text-yellow-800', 'In Progress': 'bg-blue-100 text-blue-800', 'Completed': 'bg-green-100 text-green-800'
+        };
+        const statusText = {
+            'Pending': 'รอดำเนินการ', 'In Progress': 'กำลังดำเนินการ', 'Completed': 'เสร็จสิ้น'
+        };
+        filteredMaintenance.forEach(item => {
+            const row = `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 px-2">${formatDate(item.date)}</td>
+                    <td class="py-3 px-2">${item.roomId}</td>
+                    <td class="py-3 px-2">${item.issue} ${item.reminder ? '<span class="text-xs text-blue-500">(ตามรอบ)</span>' : ''}</td>
+                    <td class="py-3 px-2"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusBadge[item.status]}">${statusText[item.status]}</span></td>
+                    <td class="py-3 px-2">${item.cost.toLocaleString()}</td>
+                    <td class="py-3 px-2">
+                         <button onclick="editMaintenance(${item.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button onclick="confirmDelete('maintenance', ${item.id})" class="text-red-600 hover:text-red-900">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    function renderDocumentTenantSelect() {
+        const select = document.getElementById('doc-tenant-select');
+        select.innerHTML = '<option value="">-- กรุณาเลือกผู้เช่า --</option>';
+        db.tenants.forEach(tenant => {
+            select.innerHTML += `<option value="${tenant.id}">${tenant.name} (ห้อง ${tenant.roomId})</option>`;
+        });
+    }
+
+
+    // --- UI INTERACTION & NAVIGATION ---
+    function showView(viewName) {
+        document.querySelectorAll('[id^="view-"]').forEach(view => view.classList.add('hidden'));
+        document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+        document.getElementById(`nav-${viewName}`).classList.add('active');
+    }
+
+    function openModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+        document.getElementById('modal-backdrop').style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+        document.getElementById('modal-backdrop').style.display = 'none';
+    }
+    
+    function closeAllModals() {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.style.display = 'none';
+        });
+        document.getElementById('modal-backdrop').style.display = 'none';
+    }
+
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+        toastMessage.textContent = message;
+        toast.className = 'show';
+        if (isError) toast.classList.add('error');
+        
+        setTimeout(() => {
+            toast.className = toast.className.replace('show', '');
+        }, 3000);
+    }
+    
+    // --- CONFIRMATION MODAL LOGIC ---
+    function confirmDelete(type, id) {
+        openModal('confirm-modal');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+        
+        // Clone and replace the button to remove old event listeners
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+        newOkBtn.onclick = () => {
+            if (type === 'tenant') deleteTenant(id);
+            else if (type === 'maintenance') deleteMaintenance(id);
+            closeModal('confirm-modal');
+        };
+        cancelBtn.onclick = () => closeModal('confirm-modal');
+    }
+
+
+    // --- TENANT MANAGEMENT LOGIC ---
+    function openTenantModal() {
+        document.getElementById('tenant-form').reset();
+        document.getElementById('tenant-id').value = '';
+        document.getElementById('tenant-modal-title').textContent = 'เพิ่มผู้เช่าใหม่';
+        const roomSelect = document.getElementById('tenant-room');
+        roomSelect.innerHTML = '';
+        db.rooms.filter(r => r.tenantId === null).forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}">${room.id}</option>`;
+        });
+        openModal('tenant-modal');
+    }
+
+    document.getElementById('tenant-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const tenantId = document.getElementById('tenant-id').value;
+        const tenantData = {
+            roomId: document.getElementById('tenant-room').value,
+            name: document.getElementById('tenant-name').value,
+            startDate: document.getElementById('tenant-start-date').value,
+            endDate: document.getElementById('tenant-end-date').value,
+            rent: parseFloat(document.getElementById('tenant-rent').value)
+        };
+
+        if (tenantId) { // Editing
+            const index = db.tenants.findIndex(t => t.id == tenantId);
+            const oldRoomId = db.tenants[index].roomId;
+            if (oldRoomId !== tenantData.roomId) { // If room changed
+                 const oldRoom = db.rooms.find(r => r.id === oldRoomId);
+                 if(oldRoom) oldRoom.tenantId = null;
+                 const newRoom = db.rooms.find(r => r.id === tenantData.roomId);
+                 if(newRoom) newRoom.tenantId = parseInt(tenantId);
+            }
+            db.tenants[index] = { ...db.tenants[index], ...tenantData };
+            showToast('แก้ไขข้อมูลผู้เช่าสำเร็จ');
+        } else { // Adding
+            if (!tenantData.roomId) {
+                showToast('ไม่มีห้องว่างให้เลือก', true);
+                return;
+            }
+            tenantData.id = Date.now();
+            db.tenants.push(tenantData);
+            const room = db.rooms.find(r => r.id === tenantData.roomId);
+            room.tenantId = tenantData.id;
+            showToast('เพิ่มผู้เช่าใหม่สำเร็จ');
+        }
+        saveDataToLocalStorage();
+        renderAll();
+        closeModal('tenant-modal');
+    });
+    
+    function editTenant(id) {
+        const tenant = db.tenants.find(t => t.id === id);
+        if (!tenant) return;
+        document.getElementById('tenant-modal-title').textContent = 'แก้ไขข้อมูลผู้เช่า';
+        document.getElementById('tenant-id').value = tenant.id;
+        document.getElementById('tenant-name').value = tenant.name;
+        document.getElementById('tenant-start-date').value = tenant.startDate;
+        document.getElementById('tenant-end-date').value = tenant.endDate;
+        document.getElementById('tenant-rent').value = tenant.rent;
+        const roomSelect = document.getElementById('tenant-room');
+        roomSelect.innerHTML = '';
+        db.rooms.filter(r => r.tenantId === null || r.id === tenant.roomId).forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}" ${room.id === tenant.roomId ? 'selected' : ''}>${room.id}</option>`;
+        });
+        openModal('tenant-modal');
+    }
+
+    function deleteTenant(id) {
+        const tenantIndex = db.tenants.findIndex(t => t.id === id);
+        if (tenantIndex > -1) {
+            const tenant = db.tenants[tenantIndex];
+            const room = db.rooms.find(r => r.id === tenant.roomId);
+            if (room) room.tenantId = null;
+            db.tenants.splice(tenantIndex, 1);
+            saveDataToLocalStorage();
+            renderAll();
+            showToast('ลบข้อมูลผู้เช่าเรียบร้อยแล้ว');
+        }
+    }
+
+
+    // --- MAINTENANCE MANAGEMENT LOGIC ---
+    function openMaintenanceModal() {
+        document.getElementById('maintenance-form').reset();
+        document.getElementById('maintenance-id').value = '';
+        const roomSelect = document.getElementById('maintenance-room');
+        roomSelect.innerHTML = '';
+        db.rooms.forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}">${room.id}</option>`;
+        });
+        openModal('maintenance-modal');
+    }
+    
+    function editMaintenance(id) {
+        const item = db.maintenance.find(m => m.id === id);
+        if (!item) return;
+        openMaintenanceModal(); // To populate rooms
+        document.getElementById('maintenance-id').value = item.id;
+        document.getElementById('maintenance-room').value = item.roomId;
+        document.getElementById('maintenance-issue').value = item.issue;
+        document.getElementById('maintenance-cost').value = item.cost;
+        document.getElementById('maintenance-status').value = item.status;
+        document.getElementById('maintenance-reminder').checked = item.reminder;
+    }
+
+    document.getElementById('maintenance-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const maintenanceId = document.getElementById('maintenance-id').value;
+        const maintenanceData = {
+            roomId: document.getElementById('maintenance-room').value,
+            issue: document.getElementById('maintenance-issue').value,
+            status: document.getElementById('maintenance-status').value,
+            cost: parseFloat(document.getElementById('maintenance-cost').value) || 0,
+            reminder: document.getElementById('maintenance-reminder').checked
+        };
+        
+        if (maintenanceId) { // Editing
+            const index = db.maintenance.findIndex(m => m.id == maintenanceId);
+            db.maintenance[index] = { ...db.maintenance[index], ...maintenanceData };
+            showToast('อัปเดตรายการซ่อมบำรุงสำเร็จ');
+        } else { // Adding
+            maintenanceData.id = Date.now();
+            maintenanceData.date = new Date().toISOString().split('T')[0];
+            db.maintenance.push(maintenanceData);
+            showToast('เพิ่มรายการซ่อมบำรุงสำเร็จ');
+        }
+        
+        saveDataToLocalStorage();
+        renderAll();
+        closeModal('maintenance-modal');
+    });
+
+    function deleteMaintenance(id) {
+        db.maintenance = db.maintenance.filter(item => item.id !== id);
+        saveDataToLocalStorage();
+        renderAll();
+        showToast('ลบรายการซ่อมบำรุงแล้ว');
+    }
+
+
+    // --- DOCUMENT GENERATION & DETAILS VIEW ---
+    function viewRoomDetails(roomId) {
+        const room = db.rooms.find(r => r.id === roomId);
+        const tenant = db.tenants.find(t => t.id === room.tenantId);
+        const maintenanceHistory = db.maintenance.filter(m => m.roomId === roomId);
+
+        let content = `<div class="p-4 space-y-4">
+            <h2 class="text-xl font-bold border-b pb-2">รายละเอียดห้อง ${roomId}</h2>`;
+        
+        if (tenant) {
+            content += `<div><h3 class="font-semibold">ข้อมูลผู้เช่า</h3>
+                <p><strong>ชื่อ:</strong> ${tenant.name}</p>
+                <p><strong>สัญญา:</strong> ${formatDate(tenant.startDate)} - ${formatDate(tenant.endDate)}</p>
+                <p><strong>ค่าเช่า:</strong> ${tenant.rent.toLocaleString()} บาท/เดือน</p></div>`;
+        } else {
+            content += `<div><h3 class="font-semibold">ข้อมูลผู้เช่า</h3><p>ห้องว่าง</p></div>`;
+        }
+
+        content += `<div><h3 class="font-semibold">ประวัติการซ่อมบำรุง</h3>`;
+        if (maintenanceHistory.length > 0) {
+            content += `<ul class="list-disc list-inside mt-2">` + maintenanceHistory.map(m => 
+                `<li>${formatDate(m.date)}: ${m.issue} (สถานะ: ${m.status})</li>`
+            ).join('') + `</ul>`;
+        } else {
+            content += `<p>ไม่มีประวัติการซ่อมบำรุง</p>`;
+        }
+        content += `</div></div>`;
+        
+        document.getElementById('document-title').textContent = `รายละเอียดห้อง ${roomId}`;
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function generateReceipt() {
+        const tenantId = document.getElementById('doc-tenant-select').value;
+        if (!tenantId) { showToast('กรุณาเลือกผู้เช่า', true); return; }
+        const tenant = db.tenants.find(t => t.id == tenantId);
+        const today = new Date();
+        const billingCycle = today.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
+        
+        const electricityUnit = 150, electricityRate = 8, waterUnit = 20, waterRate = 20;
+        const electricityTotal = electricityUnit * electricityRate;
+        const waterTotal = waterUnit * waterRate;
+        const totalAmount = tenant.rent + electricityTotal + waterTotal;
+
+        const content = `
+            <div class="p-4 border-b text-center"><h1 class="text-2xl font-bold">ใบแจ้งหนี้ / INVOICE</h1></div>
+            <div class="p-4 flex justify-between">
+                <div><p><strong>ถึง:</strong> ${tenant.name}</p><p><strong>ห้อง:</strong> ${tenant.roomId}</p></div>
+                <div><p><strong>เลขที่:</strong> INV-${today.getFullYear()}${today.getMonth()+1}${tenant.id}</p><p><strong>วันที่:</strong> ${formatDate(today.toISOString())}</p></div>
+            </div>
+            <div class="p-4">
+                <p><strong>สำหรับรอบบิล:</strong> ${billingCycle}</p>
+                <table class="w-full my-4 border">
+                    <thead class="bg-gray-100"><tr><th class="p-2 text-left">รายการ</th><th class="p-2 text-right">จำนวนเงิน (บาท)</th></tr></thead>
+                    <tbody>
+                        <tr class="border-t"><td class="p-2">ค่าเช่าห้อง</td><td class="p-2 text-right">${tenant.rent.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                        <tr class="border-t"><td class="p-2">ค่าไฟฟ้า (${electricityUnit} หน่วย x ${electricityRate} บาท)</td><td class="p-2 text-right">${electricityTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                        <tr class="border-t"><td class="p-2">ค่าน้ำประปา (${waterUnit} หน่วย x ${waterRate} บาท)</td><td class="p-2 text-right">${waterTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
+                    </tbody>
+                    <tfoot class="bg-gray-100 font-bold"><tr class="border-t"><td class="p-2">รวมทั้งสิ้น</td><td class="p-2 text-right">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr></tfoot>
+                </table>
+                <div class="mt-8 text-center"><p>กรุณาชำระภายในวันที่ 5 ของเดือน</p><p class="mt-4">ขอขอบคุณ</p><p>BeLiv Apartment</p></div>
+            </div>`;
+        
+        document.getElementById('document-title').textContent = 'ใบแจ้งหนี้';
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function generateLease() {
+        const tenantId = document.getElementById('doc-tenant-select').value;
+        if (!tenantId) { showToast('กรุณาเลือกผู้เช่า', true); return; }
+        const tenant = db.tenants.find(t => t.id == tenantId);
+        const content = `
+            <div class="p-4 text-center border-b"><h1 class="text-2xl font-bold">สัญญาเช่าห้องพัก</h1></div>
+            <div class="p-4 space-y-4 text-sm leading-relaxed">
+                <p>ทำขึ้นที่ BeLiv Apartment วันที่ ${formatDate(tenant.startDate)}</p>
+                <p>ระหว่าง <strong>BeLiv Apartment</strong> (ผู้ให้เช่า) และ <strong>คุณ ${tenant.name}</strong> (ผู้เช่า)</p>
+                <p>ผู้เช่าตกลงเช่าห้องพักหมายเลข <strong>${tenant.roomId}</strong> เป็นระยะเวลา 1 ปี ตั้งแต่วันที่ <strong>${formatDate(tenant.startDate)}</strong> ถึงวันที่ <strong>${formatDate(tenant.endDate)}</strong></p>
+                <p>ในอัตราค่าเช่าเดือนละ <strong>${tenant.rent.toLocaleString()} บาท</strong> ชำระภายในวันที่ 5 ของทุกเดือน</p>
+                <p class="font-bold mt-4">ข้อตกลงและเงื่อนไข:</p>
+                <ul class="list-disc list-inside">
+                    <li>ผู้เช่าจะต้องชำระค่าไฟฟ้าตามมิเตอร์ในอัตราหน่วยละ 8 บาท และค่าน้ำประปาหน่วยละ 20 บาท</li>
+                    <li>ผู้เช่าจะต้องดูแลรักษาห้องพักและทรัพย์สินภายในห้องให้อยู่ในสภาพดี</li>
+                    <li>ห้ามส่งเสียงดังรบกวนผู้อื่น หรือกระทำการผิดกฎหมายภายในอาคาร</li>
+                </ul>
+                <div class="mt-16 grid grid-cols-2 gap-8 text-center">
+                    <div><p class="mb-12">_________________________</p><p>(.........................)</p><p>ผู้ให้เช่า</p></div>
+                    <div><p class="mb-12">_________________________</p><p>(${tenant.name})</p><p>ผู้เช่า</p></div>
+                </div>
+            </div>`;
+        document.getElementById('document-title').textContent = 'สัญญาเช่า';
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function printDocument() {
+        window.print();
+    }
+
+
+    // --- UTILITY FUNCTIONS ---
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    
+    let sortDirections = {};
+    function sortTable(tableBodyId, columnIndex) {
+        const tableBody = document.getElementById(tableBodyId);
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        const key = `${tableBodyId}-${columnIndex}`;
+        const direction = sortDirections[key] === 'asc' ? 'desc' : 'asc';
+        sortDirections[key] = direction;
+
+        rows.sort((a, b) => {
+            const aText = a.querySelectorAll('td')[columnIndex].textContent.trim();
+            const bText = b.querySelectorAll('td')[columnIndex].textContent.trim();
+            
+            // Basic numeric/date sort attempt
+            const aIsDate = !isNaN(Date.parse(aText));
+            const bIsDate = !isNaN(Date.parse(bText));
+            
+            if (aIsDate && bIsDate) {
+                return direction === 'asc' ? new Date(aText) - new Date(bText) : new Date(bText) - new Date(aText);
+            }
+            
+            return direction === 'asc' ? aText.localeCompare(bText, 'th') : bText.localeCompare(aText, 'th');
+        });
+
+        tableBody.innerHTML = '';
+        rows.forEach(row => tableBody.appendChild(row));
+    }
+
+</script>
+
+</body>
+</html>
