@@ -3,372 +3,843 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moo Bell: ETH Pro Chart</title>
+    <title>Apartment Management System - Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Animation สำหรับปุ่ม Filter */
-        .filter-btn {
+        /* Custom styles */
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            color: #475569;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: #eef2ff;
+            color: #4f46e5;
+        }
+        .sidebar-link svg {
+            margin-right: 0.75rem;
+        }
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40; display: none;
+        }
+        .modal {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50; display: none;
+            max-height: 90vh;
+        }
+        #toast {
+            position: fixed; top: 20px; right: 20px;
+            background-color: #22c55e; color: white;
+            padding: 1rem 1.5rem; border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 100; display: none;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #toast.error { background-color: #ef4444; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area {
+                position: absolute; left: 0; top: 0; width: 100%;
+            }
+            .no-print { display: none; }
+        }
+        
+        .hamburger {
+            display: none;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0.5rem;
+            z-index: 60;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+        }
+        .hamburger-box {
+            width: 24px;
+            height: 24px;
+            display: inline-block;
             position: relative;
-            transition: color 0.3s;
-            white-space: nowrap;
-            padding-bottom: 4px;
-            font-size: 0.9rem;
         }
-        .filter-btn::after {
-            content: '';
+        .hamburger-inner {
+            display: block;
+            top: 50%;
+            margin-top: -2px;
+        }
+        .hamburger-inner, .hamburger-inner::before, .hamburger-inner::after {
+            width: 24px;
+            height: 2px;
+            background-color: #4f46e5;
+            border-radius: 4px;
             position: absolute;
-            width: 0;
-            height: 3px;
-            bottom: 0;
+            transition: transform 0.15s ease;
+        }
+        .hamburger-inner::before, .hamburger-inner::after {
+            content: "";
+            display: block;
+        }
+        .hamburger-inner::before { top: -8px; }
+        .hamburger-inner::after { bottom: -8px; }
+        .hamburger.active .hamburger-inner { transform: rotate(45deg); }
+        .hamburger.active .hamburger-inner::before { top: 0; opacity: 0; }
+        .hamburger.active .hamburger-inner::after { bottom: 0; transform: rotate(-90deg); }
+        
+        @media (max-width: 1023px) {
+            .hamburger { display: block; }
+            aside {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                z-index: 50;
+                transition: left 0.3s ease;
+                height: 100vh;
+                overflow-y: auto;
+                padding-top: 60px;
+            }
+            aside.active {
+                left: 0;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+            main {
+                margin-left: 0;
+                width: 100%;
+                padding-top: 60px;
+            }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 45;
+            }
+            .sidebar-overlay.active { display: block; }
+        }
+
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
             left: 0;
-            background-color: #3b82f6;
-            transition: width 0.3s ease-in-out;
+            right: 0;
+            height: 60px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 55;
+            align-items: center;
+            padding: 0 1rem;
         }
-        .filter-btn.active {
-            color: #60a5fa; /* blue-400 */
-            font-weight: bold;
+        
+        @media (max-width: 1023px) {
+            .mobile-header { display: flex; }
+            .mobile-header h1 {
+                margin-left: 50px;
+                font-size: 1.25rem;
+                color: #4f46e5;
+                font-weight: bold;
+            }
         }
-        .filter-btn.active::after {
-            width: 100%;
-        }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-900 text-white p-4 md:p-8 font-sans">
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-2xl md:text-4xl font-bold mb-6 text-center text-blue-400">
-            Moo Bell ETH Professional Dashboard
-        </h1>
-        
-        <!-- Filter Controls -->
-        <div class="flex flex-col lg:flex-row justify-between items-end mb-8 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg">
-            <div class="w-full lg:w-auto mb-4 lg:mb-0 mr-4">
-                <div class="text-lg md:text-xl text-green-300 font-mono mb-2" id="date-now">Loading Time...</div>
-                <div class="text-xs text-gray-500">*Data resets on refresh (Session based)</div>
-            </div>
-            
-            <!-- Mobile Dropdown -->
-            <div class="w-full block md:hidden">
-                <label class="text-sm text-gray-400 mb-1 block">ช่วงเวลา (Range):</label>
-                <select id="mobile-filter" onchange="setFilter(this.value)" class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 appearance-none">
-                    <option value="1">1 นาที</option>
-                    <option value="30">30 นาที</option>
-                    <option value="60">1 ชั่วโมง</option>
-                    <option value="1440">1 วัน</option>
-                    <option value="7200">5 วัน</option>
-                    <option value="ALL" selected>ทั้งหมด</option>
-                </select>
-            </div>
+<body class="flex h-screen">
 
-            <!-- Desktop Buttons -->
-            <div class="hidden md:flex space-x-5 overflow-x-auto w-full pb-2 border-b border-gray-700 lg:border-none scrollbar-hide">
-                <button onclick="setFilter(1)"        class="filter-btn text-gray-400 hover:text-white" id="btn-1m">1 นาที</button>
-                <button onclick="setFilter(30)"       class="filter-btn text-gray-400 hover:text-white" id="btn-30m">30 นาที</button>
-                <button onclick="setFilter(60)"       class="filter-btn text-gray-400 hover:text-white" id="btn-1h">1 ชม</button>
-                <button onclick="setFilter(1440)"     class="filter-btn text-gray-400 hover:text-white" id="btn-1d">1 วัน</button>
-                <button onclick="setFilter(7200)"     class="filter-btn text-gray-400 hover:text-white" id="btn-5d">5 วัน</button>
-                <button onclick="setFilter(10080)"    class="filter-btn text-gray-400 hover:text-white" id="btn-1w">1 สัปดาห์</button>
-                <button onclick="setFilter(43200)"    class="filter-btn text-gray-400 hover:text-white" id="btn-1M">1 เดือน</button>
-                <button onclick="setFilter(525600)"   class="filter-btn text-gray-400 hover:text-white" id="btn-1Y">1 ปี</button>
-                <button onclick="setFilter(2628000)"  class="filter-btn text-gray-400 hover:text-white" id="btn-5Y">5 ปี</button>
-                <button onclick="setFilter('ALL')"    class="filter-btn active text-gray-400 hover:text-white" id="btn-max">สูงสุด</button>
+    <div class="mobile-header no-print">
+        <button class="hamburger" type="button" onclick="toggleSidebar()">
+            <span class="hamburger-box">
+                <span class="hamburger-inner"></span>
+            </span>
+        </button>
+        <h1>BeLiv Admin</h1>
+    </div>
+    
+    <div class="sidebar-overlay no-print" onclick="toggleSidebar()"></div>
+
+    <aside class="w-64 bg-white shadow-lg flex-shrink-0 no-print">
+        <div class="p-6 border-b">
+            <h1 class="text-2xl font-bold text-indigo-600">BeLiv Admin</h1>
+        </div>
+        <nav class="mt-4 px-4">
+            <a href="#" id="nav-dashboard" class="sidebar-link active" onclick="showView('dashboard'); toggleSidebar();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> แดชบอร์ด
+            </a>
+            <a href="#" id="nav-tenants" class="sidebar-link" onclick="showView('tenants'); toggleSidebar();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> จัดการผู้เช่า
+            </a>
+            <a href="#" id="nav-maintenance" class="sidebar-link" onclick="showView('maintenance'); toggleSidebar();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> จัดการซ่อมบำรุง
+            </a>
+            <a href="#" id="nav-documents" class="sidebar-link" onclick="showView('documents'); toggleSidebar();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> สร้างเอกสาร
+            </a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-8 overflow-y-auto">
+        <div id="view-dashboard">
+            <h2 class="text-3xl font-bold mb-6 text-slate-800 mt-10">แดชบอร์ดภาพรวม</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-green-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg></div>
+                    <div class="ml-4"><p class="text-gray-500">ห้องว่าง</p><p id="vacant-rooms-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-red-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></div>
+                    <div class="ml-4"><p class="text-gray-500">ห้องไม่ว่าง</p><p id="occupied-rooms-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-yellow-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div>
+                    <div class="ml-4"><p class="text-gray-500">แจ้งซ่อม</p><p id="maintenance-requests-count" class="text-2xl font-bold">0</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                    <div class="bg-blue-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
+                    <div class="ml-4"><p class="text-gray-500">สัญญาใกล้หมดอายุ</p><p id="expiring-leases-count" class="text-2xl font-bold">0</p></div>
+                </div>
+            </div>
+             <div id="lease-expiry-section" class="mb-8 hidden">
+                <h3 class="text-xl font-semibold mb-4 text-slate-700">สัญญาเช่าที่ใกล้จะหมดอายุ (30 วัน)</h3>
+                <div id="lease-expiry-list" class="bg-white p-4 rounded-lg shadow-md"></div>
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold mb-4 text-slate-700">สถานะห้องพัก</h3>
+                <div class="mb-6"><h4 class="font-bold text-slate-600 mb-3">ชั้น 1</h4>
+                    <div id="floor-1-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-4"></div>
+                </div>
+                <div><h4 class="font-bold text-slate-600 mb-3">ชั้น 2</h4>
+                    <div id="floor-2-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-4"></div>
+                </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <!-- ETH / USD -->
-            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-300">ETH / USD</h2>
-                    <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">Binance WS</span>
-                </div>
-                <!-- Price Display with Dynamic Color Class -->
-                <p class="text-4xl font-mono mb-4 font-bold transition-colors duration-300" id="price-usd">Wait...</p>
-                <div class="relative h-64 w-full"><canvas id="chartUSD"></canvas></div>
+        <div id="view-tenants" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800 mt-10">จัดการข้อมูลผู้เช่า</h2>
+                <button onclick="openTenantModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center shadow-sm mt-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg> เพิ่มผู้เช่าใหม่
+                </button>
             </div>
+            <div class="mb-4">
+                <input type="text" id="tenant-search" onkeyup="renderTenantsTable()" placeholder="ค้นหาชื่อผู้เช่าหรือห้อง..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="py-2 px-2 cursor-pointer" onclick="sortTable('tenants-table-body', 0)">ห้อง <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg></th>
+                            <th class="py-2 px-2">ชื่อผู้เช่า</th>
+                            <th class="py-2 px-2">วันเริ่มสัญญา</th>
+                            <th class="py-2 px-2">วันสิ้นสุดสัญญา</th>
+                            <th class="py-2 px-2">ค่าเช่า/เดือน</th>
+                            <th class="py-2 px-2">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenants-table-body"></tbody>
+                </table>
+            </div>
+        </div>
 
-            <!-- ETH / THB -->
-            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-300">ETH / THB</h2>
-                    <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">Calculated</span>
-                </div>
-                <p class="text-4xl font-mono mb-4 font-bold transition-colors duration-300" id="price-thb">Wait...</p>
-                <div class="relative h-64 w-full"><canvas id="chartTHB"></canvas></div>
+        <div id="view-maintenance" class="hidden">
+             <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800 mt-10">บันทึกการซ่อมบำรุง</h2>
+                <button onclick="openMaintenanceModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center shadow-sm mt-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg> เพิ่มรายการซ่อม
+                </button>
             </div>
+            <div class="mb-4">
+                <input type="text" id="maintenance-search" onkeyup="renderMaintenanceTable()" placeholder="ค้นหารายการซ่อมหรือห้อง..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="py-2 px-2 cursor-pointer" onclick="sortTable('maintenance-table-body', 0)">วันที่แจ้ง <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg></th>
+                            <th class="py-2 px-2">ห้อง</th>
+                            <th class="py-2 px-2">รายการ</th>
+                            <th class="py-2 px-2">สถานะ</th>
+                            <th class="py-2 px-2">ค่าใช้จ่าย</th>
+                            <th class="py-2 px-2">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenance-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-documents" class="hidden">
+            <h2 class="text-3xl font-bold mb-6 text-slate-800 mt-10">สร้างและพิมพ์เอกสาร</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="max-w-md">
+                    <label for="doc-tenant-select" class="block text-sm font-medium text-gray-700 mb-2">เลือกผู้เช่าเพื่อสร้างเอกสาร</label>
+                    <select id="doc-tenant-select" class="w-full p-2 border border-gray-300 rounded-lg"></select>
+                    <div class="mt-6 flex space-x-4">
+                        <button onclick="generateReceipt()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg> สร้างใบแจ้งหนี้/ใบเสร็จ
+                        </button>
+                        <button onclick="generateLease()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> สร้างสัญญาเช่า
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-backdrop" class="modal-backdrop" onclick="closeAllModals()"></div>
+
+    <div id="tenant-modal" class="modal bg-white rounded-lg shadow-xl w-full max-w-lg flex-col">
+        <div class="p-6 border-b flex justify-between items-center flex-shrink-0">
+            <h3 id="tenant-modal-title" class="text-xl font-bold text-slate-800">เพิ่มผู้เช่าใหม่</h3>
+            <button onclick="closeModal('tenant-modal')" class="text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-8 overflow-y-auto">
+            <form id="tenant-form">
+                <input type="hidden" id="tenant-id">
+                <div class="mb-4">
+                    <label for="tenant-room" class="block text-sm font-medium text-gray-700">ห้อง</label>
+                    <select id="tenant-room" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="tenant-name" class="block text-sm font-medium text-gray-700">ชื่อ-นามสกุล ผู้เช่า</label>
+                    <input type="text" id="tenant-name" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="tenant-start-date" class="block text-sm font-medium text-gray-700">วันเริ่มสัญญา</label>
+                        <input type="date" id="tenant-start-date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div>
+                        <label for="tenant-end-date" class="block text-sm font-medium text-gray-700">วันสิ้นสุดสัญญา</label>
+                        <input type="date" id="tenant-end-date" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="tenant-rent" class="block text-sm font-medium text-gray-700">ค่าเช่า (บาท/เดือน)</label>
+                    <input type="number" id="tenant-rent" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="flex justify-end space-x-4 mt-8">
+                    <button type="button" onclick="closeModal('tenant-modal')" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">บันทึก</button>
+                </div>
+            </form>
         </div>
     </div>
 
+    <div id="maintenance-modal" class="modal bg-white rounded-lg shadow-xl w-full max-w-lg flex-col">
+        <div class="p-6 border-b flex justify-between items-center flex-shrink-0">
+            <h3 class="text-xl font-bold text-slate-800">เพิ่ม/แก้ไข รายการซ่อมบำรุง</h3>
+            <button onclick="closeModal('maintenance-modal')" class="text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-8 overflow-y-auto">
+            <form id="maintenance-form">
+                <input type="hidden" id="maintenance-id">
+                <div class="mb-4">
+                    <label for="maintenance-room" class="block text-sm font-medium text-gray-700">ห้อง</label>
+                    <select id="maintenance-room" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="maintenance-issue" class="block text-sm font-medium text-gray-700">รายการที่ต้องซ่อม</label>
+                    <input type="text" id="maintenance-issue" placeholder="เช่น เปลี่ยนหลอดไฟ, ล้างแอร์" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-4">
+                    <label for="maintenance-cost" class="block text-sm font-medium text-gray-700">ค่าใช้จ่าย (บาท)</label>
+                    <input type="number" id="maintenance-cost" value="0" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="mb-4">
+                    <label for="maintenance-status" class="block text-sm font-medium text-gray-700">สถานะ</label>
+                    <select id="maintenance-status" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required>
+                        <option value="Pending">รอดำเนินการ</option>
+                        <option value="In Progress">กำลังดำเนินการ</option>
+                        <option value="Completed">เสร็จสิ้น</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <input type="checkbox" id="maintenance-reminder" class="mr-2 rounded">
+                    <label for="maintenance-reminder" class="text-sm font-medium text-gray-700">ตั้งค่าการแจ้งเตือน (ซ่อมตามรอบ)</label>
+                </div>
+                <div class="flex justify-end space-x-4 mt-8">
+                    <button type="button" onclick="closeModal('maintenance-modal')" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="document-modal" class="modal bg-white p-0 rounded-lg shadow-xl w-full max-w-3xl flex-col">
+        <div class="p-6 border-b flex justify-between items-center no-print">
+            <h3 id="document-title" class="text-2xl font-bold">ตัวอย่างเอกสาร</h3>
+            <button onclick="closeModal('document-modal')" class="text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div id="document-content" class="p-8 printable-area bg-white h-[70vh] overflow-y-auto"></div>
+        <div class="p-4 flex justify-end border-t no-print">
+            <button onclick="printDocument()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg> พิมพ์/ดาวน์โหลด PDF
+            </button>
+        </div>
+    </div>
+    
+    <div id="confirm-modal" class="modal bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        </div>
+        <h3 id="confirm-title" class="text-lg font-medium text-gray-900">ยืนยันการลบ</h3>
+        <p id="confirm-text" class="text-sm text-gray-500 mt-2">คุณแน่ใจหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+        <div class="mt-6 flex justify-center space-x-4">
+            <button id="confirm-cancel-btn" type="button" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+            <button id="confirm-ok-btn" type="button" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">ยืนยัน</button>
+        </div>
+    </div>
+
+    <div id="toast">
+        <p id="toast-message"></p>
+    </div>
+
     <script>
-        // ==========================================
-        // Configuration
-        // ==========================================
-        let currentFilterMode = 'ALL';
-        let filterMinutes = 0;
-        let currentExchangeRate = 34.0;
+    // --- DATABASE & STATE MANAGEMENT ---
+    let db = { rooms: [], tenants: [], maintenance: [] };
 
-        // Theme Constants (Google Finance Style)
-        const THEME = {
-            UP: { border: '#10b981', fill: 'rgba(16, 185, 129, 0.5)', text: 'text-green-400' }, // Green
-            DOWN: { border: '#ef4444', fill: 'rgba(239, 68, 68, 0.5)', text: 'text-red-400' }   // Red
-        };
-
-        // ==========================================
-        // Custom Chart Setup (Gradient & Crosshair)
-        // ==========================================
-        function createChart(ctxId, label) {
-            const ctx = document.getElementById(ctxId).getContext('2d');
-            
-            return new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: label,
-                        data: [],
-                        borderWidth: 2,
-                        tension: 0.1, // เส้นคมขึ้นเล็กน้อย
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderWidth: 2,
-                        fill: true,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(31, 41, 55, 0.9)',
-                            titleColor: '#9ca3af',
-                            bodyColor: '#fff',
-                            bodyFont: { size: 14, weight: 'bold' },
-                            borderColor: '#4b5563',
-                            borderWidth: 1,
-                            displayColors: false,
-                            callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y.toLocaleString() + (ctxId === 'chartUSD' ? ' USD' : ' THB');
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            display: true,
-                            grid: { display: false }, // ซ่อน Grid แนวตั้ง
-                            ticks: { 
-                                color: '#9ca3af', 
-                                maxTicksLimit: 6,
-                                maxRotation: 0
-                            }
-                        },
-                        y: {
-                            display: true,
-                            position: 'right', // ย้ายแกน Y ไปขวาเหมือนแอปเทรด
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                            ticks: { color: '#9ca3af' }
-                        }
-                    }
-                },
-                // Plugin สำหรับเส้น Crosshair แนวตั้ง
-                plugins: [{
-                    afterDraw: chart => {
-                        if (chart.tooltip?._active?.length) {
-                            const x = chart.tooltip._active[0].element.x;
-                            const yAxis = chart.scales.y;
-                            const ctx = chart.ctx;
-                            ctx.save();
-                            ctx.beginPath();
-                            ctx.moveTo(x, yAxis.top);
-                            ctx.lineTo(x, yAxis.bottom);
-                            ctx.lineWidth = 1;
-                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                            ctx.setLineDash([5, 5]); // เส้นประ
-                            ctx.stroke();
-                            ctx.restore();
-                        }
-                    }
-                }]
-            });
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDataFromLocalStorage();
+        if (db.rooms.length === 0) {
+            initializeDefaultData();
         }
+        renderAll();
+    });
+    
+    function loadDataFromLocalStorage() {
+        const storedDb = localStorage.getItem('apartmentDb');
+        if (storedDb) { db = JSON.parse(storedDb); }
+    }
 
-        const chartUSD = createChart('chartUSD', 'ETH/USD');
-        const chartTHB = createChart('chartTHB', 'ETH/THB');
+    function saveDataToLocalStorage() {
+        localStorage.setItem('apartmentDb', JSON.stringify(db));
+    }
 
-        // ==========================================
-        // Helper: Gradient & Color Logic
-        // ==========================================
-        function updateChartAppearance(chart, dataPoints) {
-            if (dataPoints.length < 2) return;
-
-            const firstPrice = dataPoints[0];
-            const lastPrice = dataPoints[dataPoints.length - 1];
-            const isUp = lastPrice >= firstPrice;
-            const theme = isUp ? THEME.UP : THEME.DOWN;
-
-            // 1. Update Text Color
-            const textId = chart.canvas.id === 'chartUSD' ? 'price-usd' : 'price-thb';
-            const textEl = document.getElementById(textId);
-            textEl.className = `text-4xl font-mono mb-4 font-bold transition-colors duration-300 ${theme.text}`;
-
-            // 2. Create Gradient Fill
-            const ctx = chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, theme.fill); // สีเข้มด้านบน
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // จางหายด้านล่าง
-
-            // 3. Apply to Chart
-            chart.data.datasets[0].borderColor = theme.border;
-            chart.data.datasets[0].backgroundColor = gradient;
-            chart.data.datasets[0].pointHoverBorderColor = theme.border;
-        }
-
-        // ==========================================
-        // Data Handling
-        // ==========================================
-        const masterData = {
-            usd: { data: [], timestamps: [] },
-            thb: { data: [], timestamps: [] }
-        };
-
-        function recordData(type, price) {
-            const now = new Date();
-            masterData[type].timestamps.push(now);
-            masterData[type].data.push(price);
-
-            if (masterData[type].timestamps.length > 50000) {
-                masterData[type].timestamps.shift();
-                masterData[type].data.shift();
+    function initializeDefaultData() {
+        for (let i = 1; i <= 2; i++) {
+            for (let j = 1; j <= 12; j++) {
+                const roomNumber = `${i}${j < 10 ? '0' + j : j}`;
+                db.rooms.push({ id: roomNumber, floor: i, tenantId: null });
             }
-
-            renderChart(type === 'usd' ? chartUSD : chartTHB, masterData[type]);
         }
+        addSampleData();
+        saveDataToLocalStorage();
+    }
 
-        function renderChart(chart, sourceData) {
-            if (sourceData.data.length === 0) return;
+    function addSampleData() {
+        db.tenants = [
+            { id: 1, roomId: '101', name: 'สมชาย ใจดี', startDate: '2025-01-15', endDate: '2026-01-14', rent: 5500 },
+            { id: 2, roomId: '103', name: 'สมหญิง รักสงบ', startDate: '2025-03-01', endDate: '2026-02-28', rent: 5500 },
+            { id: 3, roomId: '205', name: 'มานะ อดทน', startDate: '2025-05-20', endDate: '2026-05-19', rent: 6000 },
+            { id: 4, roomId: '211', name: 'ปิติ ยินดี', startDate: '2025-08-01', endDate: '2025-09-30', rent: 6200 },
+        ];
+        db.tenants.forEach(tenant => {
+            const room = db.rooms.find(r => r.id === tenant.roomId);
+            if (room) room.tenantId = tenant.id;
+        });
+        db.maintenance = [
+            { id: 1, roomId: '101', issue: 'แอร์ไม่เย็น', date: '2025-08-10', status: 'Completed', cost: 800, reminder: false },
+            { id: 2, roomId: '205', issue: 'เปลี่ยนหลอดไฟห้องน้ำ', date: '2025-08-22', status: 'In Progress', cost: 150, reminder: false },
+            { id: 3, roomId: '103', issue: 'ล้างแอร์ (ตามรอบ)', date: '2025-09-01', status: 'Pending', cost: 600, reminder: true },
+        ];
+    }
 
-            // 1. Filter Data
-            let slicedTimestamps = sourceData.timestamps;
-            let slicedData = sourceData.data;
+    // --- RENDER FUNCTIONS ---
+    function renderAll() {
+        renderDashboard();
+        renderTenantsTable();
+        renderMaintenanceTable();
+        renderDocumentTenantSelect();
+    }
 
-            if (currentFilterMode === 'MINUTES') {
-                const now = new Date();
-                const cutoff = new Date(now.getTime() - filterMinutes * 60000);
-                const startIndex = sourceData.timestamps.findIndex(t => t >= cutoff);
-                if (startIndex !== -1) {
-                    slicedTimestamps = sourceData.timestamps.slice(startIndex);
-                    slicedData = sourceData.data.slice(startIndex);
-                } else {
-                    slicedTimestamps = [];
-                    slicedData = [];
-                }
-            }
-
-            if (slicedData.length === 0) return;
-
-            // 2. Generate Thai Buddhist Era Labels
-            const labels = slicedTimestamps.map(t => {
-                // ถ้าดูภาพกว้าง (มากกว่า 1 วัน) ให้แสดง วัน/เดือน
-                if (filterMinutes > 1440 || currentFilterMode === 'ALL') {
-                    // รูปแบบ: 18 ก.พ. (Thai Month)
-                    return t.toLocaleDateString('th-TH', { 
-                        day: 'numeric', 
-                        month: 'short',
-                        year: 'numeric' // จะได้ พ.ศ. โดยอัตโนมัติใน Locale th-TH
-                    }).replace('พ.ศ. ', ''); // ตัดคำว่า พ.ศ. ออกถ้ามี ให้เหลือแต่ตัวเลข
-                }
-                // ถ้าดูภาพสั้น (Live/ชั่วโมง) แสดงเวลา
-                return t.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-            });
-
-            // 3. Update Chart Data
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = slicedData;
-
-            // 4. Update Colors (Green/Red) based on sliced data
-            updateChartAppearance(chart, slicedData);
-
-            chart.update();
+    function renderDashboard() {
+        const floor1Grid = document.getElementById('floor-1-grid');
+        const floor2Grid = document.getElementById('floor-2-grid');
+        floor1Grid.innerHTML = '';
+        floor2Grid.innerHTML = '';
+        let occupiedCount = 0;
+        db.rooms.forEach(room => {
+            const isOccupied = room.tenantId !== null;
+            if(isOccupied) occupiedCount++;
+            const roomCard = `<div class="p-4 rounded-lg shadow-sm text-center cursor-pointer transition-transform hover:scale-105 ${isOccupied ? 'bg-red-100' : 'bg-green-100'}" onclick="viewRoomDetails('${room.id}')"><p class="font-bold text-lg">${room.id}</p><p class="text-sm ${isOccupied ? 'text-red-700' : 'text-green-700'}">${isOccupied ? 'ไม่ว่าง' : 'ว่าง'}</p></div>`;
+            if (room.floor === 1) floor1Grid.innerHTML += roomCard;
+            else floor2Grid.innerHTML += roomCard;
+        });
+        document.getElementById('occupied-rooms-count').textContent = occupiedCount;
+        document.getElementById('vacant-rooms-count').textContent = db.rooms.length - occupiedCount;
+        document.getElementById('maintenance-requests-count').textContent = db.maintenance.filter(m => m.status !== 'Completed').length;
+        const today = new Date();
+        const thirtyDaysFromNow = new Date(new Date().setDate(today.getDate() + 30));
+        const expiringLeases = db.tenants.filter(t => {
+            const endDate = new Date(t.endDate);
+            return endDate <= thirtyDaysFromNow && endDate >= new Date();
+        });
+        document.getElementById('expiring-leases-count').textContent = expiringLeases.length;
+        const expirySection = document.getElementById('lease-expiry-section');
+        const expiryList = document.getElementById('lease-expiry-list');
+        if (expiringLeases.length > 0) {
+            expiryList.innerHTML = expiringLeases.map(t => `<div class="p-2 border-b last:border-b-0"><p><strong>ห้อง ${t.roomId} (${t.name})</strong> - หมดสัญญาวันที่ ${formatDate(t.endDate)}</p></div>`).join('');
+            expirySection.classList.remove('hidden');
+        } else {
+            expirySection.classList.add('hidden');
         }
+    }
 
-        // ==========================================
-        // Controls
-        // ==========================================
-        function setFilter(modeInput) {
-            let mode = modeInput;
-            if (mode !== 'ALL' && !isNaN(mode)) mode = parseInt(mode);
-
-            currentFilterMode = typeof mode === 'number' ? 'MINUTES' : mode;
-            filterMinutes = typeof mode === 'number' ? mode : 0;
-
-            // Update Buttons
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            const btnMap = {
-                1: 'btn-1m', 30: 'btn-30m', 60: 'btn-1h', 1440: 'btn-1d', 7200: 'btn-5d',
-                10080: 'btn-1w', 43200: 'btn-1M', 525600: 'btn-1Y', 2628000: 'btn-5Y', 'ALL': 'btn-max'
-            };
-            if(btnMap[mode]) document.getElementById(btnMap[mode])?.classList.add('active');
-            
-            // Update Dropdown
-            const mobileSelect = document.getElementById('mobile-filter');
-            if(mobileSelect) mobileSelect.value = modeInput;
-
-            renderChart(chartUSD, masterData.usd);
-            renderChart(chartTHB, masterData.thb);
+    function renderTenantsTable() {
+        const tableBody = document.getElementById('tenants-table-body');
+        const searchTerm = document.getElementById('tenant-search').value.toLowerCase();
+        const filteredTenants = db.tenants.filter(t => t.name.toLowerCase().includes(searchTerm) || t.roomId.includes(searchTerm));
+        tableBody.innerHTML = '';
+        if (filteredTenants.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">ไม่พบข้อมูลผู้เช่า</td></tr>';
+            return;
         }
+        filteredTenants.forEach(tenant => {
+            const row = `<tr class="border-b hover:bg-gray-50"><td class="py-3 px-2">${tenant.roomId}</td><td class="py-3 px-2">${tenant.name}</td><td class="py-3 px-2">${formatDate(tenant.startDate)}</td><td class="py-3 px-2">${formatDate(tenant.endDate)}</td><td class="py-3 px-2">${tenant.rent.toLocaleString()}</td><td class="py-3 px-2"><button onclick="editTenant(${tenant.id})" class="text-indigo-600 hover:text-indigo-900 mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button><button onclick="confirmDelete('tenant', ${tenant.id})" class="text-red-600 hover:text-red-900"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></td></tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
 
-        // ==========================================
-        // API & Clock
-        // ==========================================
-        const wsBinance = new WebSocket('wss://stream.binance.com:9443/ws/ethusdt@trade');
-        let lastUpdateTime = 0;
+    function renderMaintenanceTable() {
+        const tableBody = document.getElementById('maintenance-table-body');
+        const searchTerm = document.getElementById('maintenance-search').value.toLowerCase();
+        const filteredMaintenance = db.maintenance.filter(item => item.issue.toLowerCase().includes(searchTerm) || item.roomId.includes(searchTerm));
+        tableBody.innerHTML = '';
+        if (filteredMaintenance.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">ไม่มีรายการซ่อมบำรุง</td></tr>';
+            return;
+        }
+        const statusBadge = { 'Pending': 'bg-yellow-100 text-yellow-800', 'In Progress': 'bg-blue-100 text-blue-800', 'Completed': 'bg-green-100 text-green-800' };
+        const statusText = { 'Pending': 'รอดำเนินการ', 'In Progress': 'กำลังดำเนินการ', 'Completed': 'เสร็จสิ้น' };
+        filteredMaintenance.forEach(item => {
+            const row = `<tr class="border-b hover:bg-gray-50"><td class="py-3 px-2">${formatDate(item.date)}</td><td class="py-3 px-2">${item.roomId}</td><td class="py-3 px-2">${item.issue} ${item.reminder ? '<span class="text-xs text-blue-500">(ตามรอบ)</span>' : ''}</td><td class="py-3 px-2"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusBadge[item.status]}">${statusText[item.status]}</span></td><td class="py-3 px-2">${item.cost.toLocaleString()}</td><td class="py-3 px-2"><button onclick="editMaintenance(${item.id})" class="text-indigo-600 hover:text-indigo-900 mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button><button onclick="confirmDelete('maintenance', ${item.id})" class="text-red-600 hover:text-red-900"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></td></tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
 
-        wsBinance.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const priceUSD = parseFloat(data.p);
-            const priceTHB = priceUSD * currentExchangeRate;
+    function renderDocumentTenantSelect() {
+        const select = document.getElementById('doc-tenant-select');
+        select.innerHTML = '<option value="">-- กรุณาเลือกผู้เช่า --</option>';
+        db.tenants.forEach(tenant => {
+            select.innerHTML += `<option value="${tenant.id}">${tenant.name} (ห้อง ${tenant.roomId})</option>`;
+        });
+    }
 
-            document.getElementById('price-usd').innerText = `$${priceUSD.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            document.getElementById('price-thb').innerText = `฿${priceTHB.toLocaleString('th-TH', {minimumFractionDigits: 2})}`;
+    // --- UI INTERACTION & NAVIGATION ---
+    function showView(viewName) {
+        document.querySelectorAll('[id^="view-"]').forEach(view => view.classList.add('hidden'));
+        document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+        document.getElementById(`nav-${viewName}`).classList.add('active');
+    }
 
-            const now = Date.now();
-            if (now - lastUpdateTime > 1000) {
-                recordData('usd', priceUSD);
-                recordData('thb', priceTHB);
-                lastUpdateTime = now;
-            }
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modalId === 'confirm-modal') {
+            modal.style.display = 'block';
+        } else {
+            modal.style.display = 'flex';
+        }
+        document.getElementById('modal-backdrop').style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+        const anyModalOpen = Array.from(document.querySelectorAll('.modal')).some(m => m.style.display === 'block' || m.style.display === 'flex');
+        if (!anyModalOpen) {
+            document.getElementById('modal-backdrop').style.display = 'none';
+        }
+    }
+    
+    function closeAllModals() {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.style.display = 'none';
+        });
+        document.getElementById('modal-backdrop').style.display = 'none';
+    }
+
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'show';
+        if (isError) toast.classList.add('error');
+        setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+    }
+    
+    function toggleSidebar() {
+        const sidebar = document.querySelector('aside');
+        const hamburger = document.querySelector('.hamburger');
+        const overlay = document.querySelector('.sidebar-overlay');
+        sidebar.classList.toggle('active');
+        hamburger.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+    
+    function confirmDelete(type, id) {
+        openModal('confirm-modal');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+        newOkBtn.onclick = () => {
+            if (type === 'tenant') deleteTenant(id);
+            else if (type === 'maintenance') deleteMaintenance(id);
+            closeModal('confirm-modal');
         };
+        cancelBtn.onclick = () => closeModal('confirm-modal');
+    }
 
-        async function fetchCurrencyData() {
-            try {
-                const response = await fetch(`https://open.er-api.com/v6/latest/USD?_t=${Date.now()}`);
-                const data = await response.json();
-                if (data?.rates?.THB) currentExchangeRate = data.rates.THB;
-            } catch (e) { console.error(e); }
+    // --- TENANT MANAGEMENT LOGIC ---
+    function openTenantModal() {
+        document.getElementById('tenant-form').reset();
+        document.getElementById('tenant-id').value = '';
+        document.getElementById('tenant-modal-title').textContent = 'เพิ่มผู้เช่าใหม่';
+        const roomSelect = document.getElementById('tenant-room');
+        roomSelect.innerHTML = '';
+        db.rooms.filter(r => r.tenantId === null).forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}">${room.id}</option>`;
+        });
+        openModal('tenant-modal');
+    }
+
+    document.getElementById('tenant-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const tenantId = document.getElementById('tenant-id').value;
+        const tenantData = {
+            roomId: document.getElementById('tenant-room').value,
+            name: document.getElementById('tenant-name').value,
+            startDate: document.getElementById('tenant-start-date').value,
+            endDate: document.getElementById('tenant-end-date').value,
+            rent: parseFloat(document.getElementById('tenant-rent').value)
+        };
+        if (tenantId) {
+            const index = db.tenants.findIndex(t => t.id == tenantId);
+            const oldRoomId = db.tenants[index].roomId;
+            if (oldRoomId !== tenantData.roomId) {
+                 const oldRoom = db.rooms.find(r => r.id === oldRoomId);
+                 if(oldRoom) oldRoom.tenantId = null;
+                 const newRoom = db.rooms.find(r => r.id === tenantData.roomId);
+                 if(newRoom) newRoom.tenantId = parseInt(tenantId);
+            }
+            db.tenants[index] = { ...db.tenants[index], ...tenantData };
+            showToast('แก้ไขข้อมูลผู้เช่าสำเร็จ');
+        } else {
+            if (!tenantData.roomId) {
+                showToast('ไม่มีห้องว่างให้เลือก', true);
+                return;
+            }
+            tenantData.id = Date.now();
+            db.tenants.push(tenantData);
+            const room = db.rooms.find(r => r.id === tenantData.roomId);
+            room.tenantId = tenantData.id;
+            showToast('เพิ่มผู้เช่าใหม่สำเร็จ');
         }
-        fetchCurrencyData();
-        setInterval(fetchCurrencyData, 60000);
+        saveDataToLocalStorage();
+        renderAll();
+        closeModal('tenant-modal');
+    });
+    
+    function editTenant(id) {
+        const tenant = db.tenants.find(t => t.id === id);
+        if (!tenant) return;
+        document.getElementById('tenant-modal-title').textContent = 'แก้ไขข้อมูลผู้เช่า';
+        document.getElementById('tenant-id').value = tenant.id;
+        document.getElementById('tenant-name').value = tenant.name;
+        document.getElementById('tenant-start-date').value = tenant.startDate;
+        document.getElementById('tenant-end-date').value = tenant.endDate;
+        document.getElementById('tenant-rent').value = tenant.rent;
+        const roomSelect = document.getElementById('tenant-room');
+        roomSelect.innerHTML = '';
+        db.rooms.filter(r => r.tenantId === null || r.id === tenant.roomId).forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}" ${room.id === tenant.roomId ? 'selected' : ''}>${room.id}</option>`;
+        });
+        openModal('tenant-modal');
+    }
 
-        // Clock with Thai Buddhist Year (พ.ศ.)
-        setInterval(() => {
-            const now = new Date();
-            // บังคับแปลงเป็น พ.ศ. (ค.ศ. + 543)
-            const thYear = now.getFullYear() + 543;
-            const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'numeric' });
-            const timeStr = now.toLocaleTimeString('th-TH');
-            document.getElementById('date-now').innerText = `Date Now: ${dateStr}/${thYear} ${timeStr}`;
-        }, 1000);
+    function deleteTenant(id) {
+        const tenantIndex = db.tenants.findIndex(t => t.id === id);
+        if (tenantIndex > -1) {
+            const tenant = db.tenants[tenantIndex];
+            const room = db.rooms.find(r => r.id === tenant.roomId);
+            if (room) room.tenantId = null;
+            db.tenants.splice(tenantIndex, 1);
+            saveDataToLocalStorage();
+            renderAll();
+            showToast('ลบข้อมูลผู้เช่าเรียบร้อยแล้ว');
+        }
+    }
 
+    // --- MAINTENANCE MANAGEMENT LOGIC ---
+    function openMaintenanceModal() {
+        document.getElementById('maintenance-form').reset();
+        document.getElementById('maintenance-id').value = '';
+        const roomSelect = document.getElementById('maintenance-room');
+        roomSelect.innerHTML = '';
+        db.rooms.forEach(room => {
+            roomSelect.innerHTML += `<option value="${room.id}">${room.id}</option>`;
+        });
+        openModal('maintenance-modal');
+    }
+    
+    function editMaintenance(id) {
+        const item = db.maintenance.find(m => m.id === id);
+        if (!item) return;
+        openMaintenanceModal();
+        document.getElementById('maintenance-id').value = item.id;
+        document.getElementById('maintenance-room').value = item.roomId;
+        document.getElementById('maintenance-issue').value = item.issue;
+        document.getElementById('maintenance-cost').value = item.cost;
+        document.getElementById('maintenance-status').value = item.status;
+        document.getElementById('maintenance-reminder').checked = item.reminder;
+    }
+
+    document.getElementById('maintenance-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const maintenanceId = document.getElementById('maintenance-id').value;
+        const maintenanceData = {
+            roomId: document.getElementById('maintenance-room').value,
+            issue: document.getElementById('maintenance-issue').value,
+            status: document.getElementById('maintenance-status').value,
+            cost: parseFloat(document.getElementById('maintenance-cost').value) || 0,
+            reminder: document.getElementById('maintenance-reminder').checked
+        };
+        if (maintenanceId) {
+            const index = db.maintenance.findIndex(m => m.id == maintenanceId);
+            db.maintenance[index] = { ...db.maintenance[index], ...maintenanceData };
+            showToast('อัปเดตรายการซ่อมบำรุงสำเร็จ');
+        } else {
+            maintenanceData.id = Date.now();
+            maintenanceData.date = new Date().toISOString().split('T')[0];
+            db.maintenance.push(maintenanceData);
+            showToast('เพิ่มรายการซ่อมบำรุงสำเร็จ');
+        }
+        saveDataToLocalStorage();
+        renderAll();
+        closeModal('maintenance-modal');
+    });
+
+    function deleteMaintenance(id) {
+        db.maintenance = db.maintenance.filter(item => item.id !== id);
+        saveDataToLocalStorage();
+        renderAll();
+        showToast('ลบรายการซ่อมบำรุงแล้ว');
+    }
+
+    // --- DOCUMENT GENERATION & DETAILS VIEW ---
+    function viewRoomDetails(roomId) {
+        const room = db.rooms.find(r => r.id === roomId);
+        const tenant = db.tenants.find(t => t.id === room.tenantId);
+        const maintenanceHistory = db.maintenance.filter(m => m.roomId === roomId);
+        let content = `<div class="p-4 space-y-4"><h2 class="text-xl font-bold border-b pb-2">รายละเอียดห้อง ${roomId}</h2>`;
+        if (tenant) {
+            content += `<div><h3 class="font-semibold">ข้อมูลผู้เช่า</h3><p><strong>ชื่อ:</strong> ${tenant.name}</p><p><strong>สัญญา:</strong> ${formatDate(tenant.startDate)} - ${formatDate(tenant.endDate)}</p><p><strong>ค่าเช่า:</strong> ${tenant.rent.toLocaleString()} บาท/เดือน</p></div>`;
+        } else {
+            content += `<div><h3 class="font-semibold">ข้อมูลผู้เช่า</h3><p>ห้องว่าง</p></div>`;
+        }
+        content += `<div><h3 class="font-semibold">ประวัติการซ่อมบำรุง</h3>`;
+        if (maintenanceHistory.length > 0) {
+            content += `<ul class="list-disc list-inside mt-2">` + maintenanceHistory.map(m => `<li>${formatDate(m.date)}: ${m.issue} (สถานะ: ${m.status})</li>`).join('') + `</ul>`;
+        } else {
+            content += `<p>ไม่มีประวัติการซ่อมบำรุง</p>`;
+        }
+        content += `</div></div>`;
+        document.getElementById('document-title').textContent = `รายละเอียดห้อง ${roomId}`;
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function generateReceipt() {
+        const tenantId = document.getElementById('doc-tenant-select').value;
+        if (!tenantId) { showToast('กรุณาเลือกผู้เช่า', true); return; }
+        const tenant = db.tenants.find(t => t.id == tenantId);
+        const today = new Date();
+        const billingCycle = today.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
+        const electricityUnit = 150, electricityRate = 8, waterUnit = 20, waterRate = 20;
+        const electricityTotal = electricityUnit * electricityRate;
+        const waterTotal = waterUnit * waterRate;
+        const totalAmount = tenant.rent + electricityTotal + waterTotal;
+        const content = `<div class="p-4 border-b text-center"><h1 class="text-2xl font-bold">ใบแจ้งหนี้ / INVOICE</h1></div><div class="p-4 flex justify-between"><div><p><strong>ถึง:</strong> ${tenant.name}</p><p><strong>ห้อง:</strong> ${tenant.roomId}</p></div><div><p><strong>เลขที่:</strong> INV-${today.getFullYear()}${today.getMonth()+1}${tenant.id}</p><p><strong>วันที่:</strong> ${formatDate(today.toISOString())}</p></div></div><div class="p-4"><p><strong>สำหรับรอบบิล:</strong> ${billingCycle}</p><table class="w-full my-4 border"><thead class="bg-gray-100"><tr><th class="p-2 text-left">รายการ</th><th class="p-2 text-right">จำนวนเงิน (บาท)</th></tr></thead><tbody><tr class="border-t"><td class="p-2">ค่าเช่าห้อง</td><td class="p-2 text-right">${tenant.rent.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr><tr class="border-t"><td class="p-2">ค่าไฟฟ้า (${electricityUnit} หน่วย x ${electricityRate} บาท)</td><td class="p-2 text-right">${electricityTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr><tr class="border-t"><td class="p-2">ค่าน้ำประปา (${waterUnit} หน่วย x ${waterRate} บาท)</td><td class="p-2 text-right">${waterTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr></tbody><tfoot class="bg-gray-100 font-bold"><tr class="border-t"><td class="p-2">รวมทั้งสิ้น</td><td class="p-2 text-right">${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr></tfoot></table><div class="mt-8 text-center"><p>กรุณาชำระภายในวันที่ 5 ของเดือน</p><p class="mt-4">ขอขอบคุณ</p><p>BeLiv Apartment</p></div></div>`;
+        document.getElementById('document-title').textContent = 'ใบแจ้งหนี้';
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function generateLease() {
+        const tenantId = document.getElementById('doc-tenant-select').value;
+        if (!tenantId) { showToast('กรุณาเลือกผู้เช่า', true); return; }
+        const tenant = db.tenants.find(t => t.id == tenantId);
+        const content = `<div class="p-4 text-center border-b"><h1 class="text-2xl font-bold">สัญญาเช่าห้องพัก</h1></div><div class="p-4 space-y-4 text-sm leading-relaxed"><p>ทำขึ้นที่ BeLiv Apartment วันที่ ${formatDate(tenant.startDate)}</p><p>ระหว่าง <strong>BeLiv Apartment</strong> (ผู้ให้เช่า) และ <strong>คุณ ${tenant.name}</strong> (ผู้เช่า)</p><p>ผู้เช่าตกลงเช่าห้องพักหมายเลข <strong>${tenant.roomId}</strong> เป็นระยะเวลาตามที่ระบุไว้ในสัญญา ตั้งแต่วันที่ <strong>${formatDate(tenant.startDate)}</strong> ถึงวันที่ <strong>${formatDate(tenant.endDate)}</strong></p><p>ในอัตราค่าเช่าเดือนละ <strong>${tenant.rent.toLocaleString()} บาท</strong> ชำระภายในวันที่ 5 ของทุกเดือน</p><p class="font-bold mt-4">ข้อตกลงและเงื่อนไข:</p><ul class="list-disc list-inside"><li>ผู้เช่าจะต้องชำระค่าไฟฟ้าตามมิเตอร์ในอัตราหน่วยละ 8 บาท และค่าน้ำประปาหน่วยละ 20 บาท</li><li>ผู้เช่าจะต้องดูแลรักษาห้องพักและทรัพย์สินภายในห้องให้อยู่ในสภาพดี</li><li>ห้ามส่งเสียงดังรบกวนผู้อื่น หรือกระทำการผิดกฎหมายภายในอาคาร</li></ul><div class="mt-16 grid grid-cols-2 gap-8 text-center"><div><p class="mb-12">_________________________</p><p>(.........................)</p><p>ผู้ให้เช่า</p></div><div><p class="mb-12">_________________________</p><p>(${tenant.name})</p><p>ผู้เช่า</p></div></div></div>`;
+        document.getElementById('document-title').textContent = 'สัญญาเช่า';
+        document.getElementById('document-content').innerHTML = content;
+        openModal('document-modal');
+    }
+
+    function printDocument() {
+        window.print();
+    }
+
+    // --- UTILITY FUNCTIONS ---
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    
+    let sortDirections = {};
+    function sortTable(tableBodyId, columnIndex) {
+        const tableBody = document.getElementById(tableBodyId);
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        const key = `${tableBodyId}-${columnIndex}`;
+        const direction = sortDirections[key] === 'asc' ? 'desc' : 'asc';
+        sortDirections[key] = direction;
+        rows.sort((a, b) => {
+            let aText = a.querySelectorAll('td')[columnIndex].textContent.trim();
+            let bText = b.querySelectorAll('td')[columnIndex].textContent.trim();
+            if (columnIndex === 4 && (tableBodyId === 'tenants-table-body' || tableBodyId === 'maintenance-table-body')) {
+                const aNum = parseFloat(aText.replace(/,/g, ''));
+                const bNum = parseFloat(bText.replace(/,/g, ''));
+                 return direction === 'asc' ? aNum - bNum : bNum - aNum;
+            }
+            return direction === 'asc' ? aText.localeCompare(bText, 'th-TH') : bText.localeCompare(aText, 'th-TH');
+        });
+        tableBody.innerHTML = '';
+        rows.forEach(row => tableBody.appendChild(row));
+    }
     </script>
+
 </body>
 </html>
